@@ -14,7 +14,7 @@ D.BJT.forEach(cfg => { T[cfg.id] = { cfg, seats: Array(5).fill(null), dealer: []
 function view(t, uid) {
   return { id: t.cfg.id, cfg: t.cfg, phase: t.phase, endsAt: t.endsAt, deadline: t.deadline, active: t.active, msg: t.msg, now: Date.now(),
     dealer: t.dealer.map((c, i) => i === 1 && t.hole ? null : c), dealerTot: t.dealer.length ? (t.hole ? cv(t.dealer[0]) : tot(t.dealer).t) : 0,
-    spy: null, seats: t.seats.map((s, i) => s ? { i, uid: s.uid, pseudo: s.pseudo, face: s.face, bet: s.bet, hands: s.hands.map(h => ({ cards: h.cards, bet: h.bet, res: h.res, tot: h.cards.length ? tot(h.cards).t : 0, soft: tot(h.cards).soft })) } : null),
+    spy: null, seats: t.seats.map((s, i) => s ? { i, uid: s.uid, pseudo: s.pseudo, face: s.face, av: s.av, bet: s.bet, hands: s.hands.map(h => ({ cards: h.cards, bet: h.bet, res: h.res, tot: h.cards.length ? tot(h.cards).t : 0, soft: tot(h.cards).soft })) } : null),
     me: t.seats.findIndex(s => s && s.uid === uid) };
 }
 function emit(t) {
@@ -82,7 +82,7 @@ const tbl = id => { const t = T[id]; if (!t) throw E('Table inconnue.'); return 
 C.api.bjJoin = (u, p, s) => { const t = tbl(p.id); s.join('bj:' + t.cfg.id); emit(t); return {}; };
 C.api.bjLeaveRoom = (u, p, s) => { s.leave('bj:' + p.id); return {}; };
 C.api.bjSit = (u, p) => { const t = tbl(p.id); if (t.seats.some(x => x && x.uid === u.id)) throw E('Tu es déjà assis.'); let i = Number(p.seat); if (!(i >= 0 && i < 5) || t.seats[i]) i = t.seats.findIndex(x => !x); if (i < 0) throw E('Table complète.');
-  t.seats[i] = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, bet: 0, hands: [] }; if (t.phase === 'idle') openBets(t); else emit(t); return {}; };
+  t.seats[i] = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, bet: 0, hands: [] }; if (t.phase === 'idle') openBets(t); else emit(t); return {}; };
 C.api.bjStand = (u, p) => { const t = tbl(p.id); const i = t.seats.findIndex(x => x && x.uid === u.id); if (i < 0) throw E('Tu n\'es pas assis.');
   const s = t.seats[i]; if (t.phase === 'bet' && s.bet) C.money(u, s.bet); else if (['deal', 'play', 'dealer'].includes(t.phase) && s.hands.length) throw E('Termine la main avant de te lever.');
   t.seats[i] = null; if (!t.seats.some(Boolean) && t.phase === 'bet') { clearTimeout(t.timer); t.phase = 'idle'; } emit(t); return {}; };

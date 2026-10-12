@@ -99,6 +99,6 @@ C.api.duelAsk = async (u, p) => { const to = await C.getUser(+p.to); if (!to || 
 C.api.duelAnswer = async (u, p) => { const dl = DUELS.get(+p.id); if (!dl || dl.to !== u.id) throw E('Ce défi n\'existe plus.'); DUELS.delete(dl.id); clearTimeout(dl.t); const a = await C.getUser(dl.from);
   if (!p.yes) { C.money(a, dl.amt); C.notify(a, { ic: '🪙', from: 'Duel', body: u.pseudo + ' refuse ton défi. Mise rendue.' }); return { refused: 1 }; }
   C.pay(u, dl.amt); const f = flip(a, dl.side); const winner = f.aWins ? a : u, loser = f.aWins ? u : a;
-  setTimeout(() => { C.money(winner, dl.amt * 2); C.result(winner, 'duel', dl.amt, dl.amt * 2); C.result(loser, 'duel', dl.amt, 0); C.feed(`<b>${C.esc(winner.pseudo)}</b> bat ${C.esc(loser.pseudo)} en duel (${C.eur(dl.amt)})`); }, 2300);
+  setTimeout(() => { C.money(winner, dl.amt * 2); C.result(winner, 'duel', dl.amt, dl.amt * 2); C.result(loser, 'duel', dl.amt, 0); C.feed(`<b>${C.esc(winner.pseudo)}</b> bat ${C.esc(loser.pseudo)} en duel (${C.eur(dl.amt)})`); C.onDuel && C.onDuel(winner, loser); }, 2300);
   const payload = { res: f.res, a: a.pseudo, b: u.pseudo, amt: dl.amt, winner: winner.pseudo };
   a.sockets.forEach(s => s.emit('duelFlip', { ...payload, win: winner === a })); return { ...payload, win: winner === u }; };

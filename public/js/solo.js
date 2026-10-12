@@ -100,7 +100,7 @@ let DU={opp:null,side:0,busy:false,rot:0,msg:'Choisis un joueur en ligne (ou le 
 BUSY.push(()=>DU.busy);
 GAME_VIEW.duel=el=>{const opps=ONLINE.filter(p=>p.id!==S.id);if(DU.opp&&DU.opp!=='bot'&&!opps.some(p=>p.id===DU.opp))DU.opp=null;if(!DU.opp)DU.opp='bot';
   el.innerHTML=`<div class="opp"><button data-act="duopp" data-v="bot" class="${DU.opp==='bot'?'on':''}"><span class="av">🎩</span><b>Le croupier</b><span class="note">toujours dispo</span></button>
-    ${opps.slice(0,8).map(p=>`<button data-act="duopp" data-v="${p.id}" class="${DU.opp===p.id?'on':''}"><span class="av">${p.face}</span><b>${esc(p.pseudo)}</b><span class="note">niv. ${p.lvl}</span></button>`).join('')}</div>
+    ${opps.slice(0,8).map(p=>`<button data-act="duopp" data-v="${p.id}" class="${DU.opp===p.id?'on':''}"><span class="av">${fc(p,40)}</span><b>${esc(p.pseudo)}</b><span class="note">niv. ${p.lvl}</span></button>`).join('')}</div>
   ${opps.length?'':'<p class="note">Personne d\'autre n\'est en ligne pour l\'instant. Invite tes potes !</p>'}
   <div class="felt"><div class="coinwrap"><div class="coin3d" id="coin" style="transform:rotateY(${DU.rot}deg)"><div>PILE</div><div class="bk">FACE</div></div></div><div class="msg ${DU.cls}">${esc(DU.msg)}</div></div>
   ${stakeUI('duel')}<div class="row2"><button class="btn ${DU.side===0?'gold':''}" data-act="duside" data-v="0">Pile</button><button class="btn ${DU.side===1?'gold':''}" data-act="duside" data-v="1">Face</button></div>

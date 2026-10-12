@@ -18,7 +18,7 @@ function crRender(){if(!CR||!$('#crCtl'))return;$('#crHist').innerHTML=CR.hist.m
   else if(CR.phase==='fly'){c.innerHTML=m?(m.out?`<button class="btn big" disabled>Encaissé à ${x2(m.out)} · +${eur(m.amt*m.out-m.amt)}</button>`:`<button class="btn gold big" data-act="crout" id="crOut">Encaisser</button>`):`<div class="empty">Vol en cours. Mise au prochain décollage !</div>`}
   else c.innerHTML=`<div class="empty">Prochain vol dans <b data-secs="${CR.endsAt}">${secs(CR.endsAt)}</b> s…</div>`;
   c.dataset.mode=mode;
-  $('#crBots').innerHTML=CR.bets.length?CR.bets.map(b=>`<div><span>${b.face} ${esc(b.pseudo)} · ${eur(b.amt)}</span><span class="${b.out?'ok':CR.phase==='end'?'ko':''}">${b.out?'encaissé '+x2(b.out):CR.phase==='end'?'explosé':'en vol…'}</span></div>`).join(''):'<div><span class="note">Personne n\'a encore misé.</span></div>';
+  $('#crBots').innerHTML=CR.bets.length?CR.bets.map(b=>`<div><span>${fc(b,22)} ${esc(b.pseudo)} · ${eur(b.amt)}</span><span class="${b.out?'ok':CR.phase==='end'?'ko':''}">${b.out?'encaissé '+x2(b.out):CR.phase==='end'?'explosé':'en vol…'}</span></div>`).join(''):'<div><span class="note">Personne n\'a encore misé.</span></div>';
   const e=$('#crm');if(CR.phase==='end'){e.textContent=(m&&m.out?x2(m.out)+' · ':'')+'CRASH '+x2(CR.crashAt);e.className='cmult '+(m&&m.out?'ok':'boom')}else if(CR.phase==='bet'){e.textContent='×1,00';e.className='cmult'}}
 ACT.crauto=el=>{crAuto=+el.dataset.v;crRender()};
 ACT.crgo=async()=>{if(!canBet(ST.crash))return;await quiet(api('crashBet',{amt:ST.crash,auto:crAuto}));snd('chip')};
@@ -67,7 +67,7 @@ function roUI(){const d=RO.st;if(!d||!$('#board'))return;const all={...RO.mine};
   $('#roTot').textContent='Validé '+eur(sumB(RO.mine))+(sumB(RO.local)?' · en attente '+eur(sumB(RO.local)):'');
   const msg=$('#roMsg');msg.className='msg';msg.textContent=d.phase==='bet'?'Faites vos jeux !':d.phase==='spin'?'Rien ne va plus…':`${d.n} ${d.n===0?'vert':REDS.has(d.n)?'rouge':'noir'}`;
   $('#roTime').innerHTML=d.phase==='bet'?`<div class="countdown"><span>Lancement dans <b data-secs="${d.endsAt}">${secs(d.endsAt)}</b> s</span>${timerBar(d.endsAt,20000)}</div>`:'';
-  $('#roPl').innerHTML=d.players.map(p=>`<span class="${p.pseudo===S.pseudo?'me':''} ${d.phase==='res'?(p.win>p.total?'ok':'ko'):''}">${p.face} ${esc(p.pseudo)} · ${eur(p.total)}${d.phase==='res'&&p.win?' → '+eur(p.win):''}</span>`).join('')||'<span class="note">Aucun joueur sur ce tour.</span>';
+  $('#roPl').innerHTML=d.players.map(p=>`<span class="${p.pseudo===S.pseudo?'me':''} ${d.phase==='res'?(p.win>p.total?'ok':'ko'):''}">${fc(p,22)} ${esc(p.pseudo)} · ${eur(p.total)}${d.phase==='res'&&p.win?' → '+eur(p.win):''}</span>`).join('')||'<span class="note">Aucun joueur sur ce tour.</span>';
   const g=$('#roGo');g.disabled=d.phase!=='bet'||!sumB(RO.local);g.textContent=d.phase==='bet'?(sumB(RO.local)?'Valider mes mises · '+eur(sumB(RO.local)):'Pose tes jetons'):'Attends le prochain tour';
   if(d.phase==='res'&&$('#rres'))$('#rres').innerHTML=`<b style="background:${d.n===0?'var(--green)':REDS.has(d.n)?'var(--red)':'var(--black)'}">${d.n}</b>`;else if($('#rres'))$('#rres').innerHTML=''}
 function roWin(k,n){if(k[0]==='n')return +k.slice(1)===n;if(n===0)return false;switch(k){case'red':return REDS.has(n);case'black':return!REDS.has(n);case'even':return n%2===0;case'odd':return n%2===1;case'low':return n<=18;case'high':return n>=19}
@@ -112,7 +112,7 @@ function rcUI(){const w=$('#rcWrap');if(!w||!RCs)return;const d=RCs,R=D.RACES[d.
   <div class="runners">${R.run.map((n,i)=>`<button data-act="rcpick" data-v="${i}" class="${(rcMine?rcMine.runner:rcPick)===i?'on':''}" ${d.phase!=='bet'||rcMine?'disabled':''}><span><b style="color:${R.col[i]}">${i+1}</b> · ${n}${d.winner===i?' 🏆':''}</span><b class="num">${d.odds[i].toFixed(2).replace('.',',')}</b></button>`).join('')}</div>
   ${rcMine?`<div class="lrow2"><span>Ton pari : <b>${eur(rcMine.amt)}</b> sur le n°${rcMine.runner+1}</span></div>`:d.phase==='bet'?`${stakeUI('race')}<button class="btn gold big" data-act="rcgo" ${rcPick===null?'disabled':''}>${rcPick===null?'Choisis un concurrent':'Parier '+eur(ST.race)+' sur le n°'+(rcPick+1)}</button>`:''}
   <div class="players" id="rcPl"></div>`;rcPl()}
-function rcPl(){const e=$('#rcPl');if(e)e.innerHTML=RCs.players.map(p=>`<span class="${p.pseudo===S.pseudo?'me':''}">${p.face} ${esc(p.pseudo)} · n°${p.runner+1} · ${eur(p.amt)}</span>`).join('')}
+function rcPl(){const e=$('#rcPl');if(e)e.innerHTML=RCs.players.map(p=>`<span class="${p.pseudo===S.pseudo?'me':''}">${fc(p,22)} ${esc(p.pseudo)} · n°${p.runner+1} · ${eur(p.amt)}</span>`).join('')}
 function rcMove(){const d=RCs;d.pos.forEach((x,i)=>{const e=$('#rn'+i);if(e)e.style.left=`calc(${Math.min(100,x)}% * .82)`});const c=$('#comm');if(c)c.textContent=d.comm}
 ACT.rcpick=el=>{rcPick=+el.dataset.v;snd('tick');rcUI()};
 stakeHook.race=()=>{const b=document.querySelector('[data-act="rcgo"]');if(b&&rcPick!==null)b.textContent='Parier '+eur(ST.race)+' sur le n°'+(rcPick+1)};

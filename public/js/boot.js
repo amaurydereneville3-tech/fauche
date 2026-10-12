@@ -30,3 +30,4 @@ on('global',g=>{if(g.type==='jackpot'){JACKPOT=g.until;updTop();notif('🎰','Ca
 on('bigloss',d=>bigLoss(d));
 setInterval(()=>{if(S)updTop()},30000);
 connect();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

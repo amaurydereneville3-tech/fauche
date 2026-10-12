@@ -59,4 +59,30 @@ async function kvSet(k, v) {
   mem.kv[k] = JSON.parse(JSON.stringify(v)); flushFile();
 }
 
-module.exports = { flushNow, init, findByPseudo, createUser, loadUser, saveUser, top, kvGet, kvSet };
+async function getPass(id) {
+  if (pool) { const r = await pool.query('select pass from users where id=$1', [id]); return r.rows[0] ? r.rows[0].pass : null; }
+  return mem.users[id] ? mem.users[id].pass : null;
+}
+async function setPass(id, hash) {
+  if (pool) { await pool.query('update users set pass=$2 where id=$1', [id, hash]); return; }
+  if (mem.users[id]) { mem.users[id].pass = hash; flushFile(); }
+}
+async function rename(id, pseudo) {
+  if (pool) { await pool.query('update users set pseudo=$2, pseudo_lc=$3 where id=$1', [id, pseudo, pseudo.toLowerCase()]); return; }
+  if (mem.users[id]) { mem.users[id].pseudo = pseudo; mem.users[id].pseudo_lc = pseudo.toLowerCase(); flushFile(); }
+}
+async function deleteUser(id) {
+  if (pool) { await pool.query('delete from users where id=$1', [id]); return; }
+  delete mem.users[id]; flushFile();
+}
+async function count() {
+  if (pool) { const r = await pool.query('select count(*)::int as n from users'); return r.rows[0].n; }
+  return Object.keys(mem.users).length;
+}
+async function search(q, limit = 20) {
+  const lc = String(q || '').toLowerCase();
+  if (pool) { const r = await pool.query("select id,pseudo,worth from users where pseudo_lc like $1 order by worth desc limit $2", ['%' + lc.replace(/[%_]/g, '') + '%', limit]); return r.rows; }
+  return Object.values(mem.users).filter(u => u.pseudo_lc.includes(lc)).slice(0, limit).map(u => ({ id: u.id, pseudo: u.pseudo, worth: u.worth || 0 }));
+}
+
+module.exports = { getPass, setPass, rename, deleteUser, count, search, flushNow, init, findByPseudo, createUser, loadUser, saveUser, top, kvGet, kvSet };

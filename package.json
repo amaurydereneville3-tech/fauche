@@ -14,7 +14,8 @@
     "express": "^4.22.3",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "socket.io-client": "^4.8.4"

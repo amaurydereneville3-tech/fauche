@@ -15,7 +15,7 @@ C.hello = []; // chaque module ajoute ce qu'un joueur reçoit en se connectant
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '20kb' }));
-app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h', setHeaders: (res, f) => { if (f.endsWith('.html') || f.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache'); } }));
 app.get('/sante', (req, res) => res.send('ok'));
 
 let SECRET = process.env.JWT_SECRET || null;
@@ -34,7 +34,7 @@ app.post('/api/register', async (req, res) => {
     if (await db.findByPseudo(pseudo.toLowerCase())) return res.status(409).json({ err: 'Ce pseudo est déjà pris.' });
     const hash = await bcrypt.hash(pass, 10);
     const id = await db.createUser(pseudo, hash, C.freshData());
-    C.feed(`<b>${C.esc(pseudo)}</b> vient d'arriver au casino`);
+    C.feed(`<b>${C.esc(pseudo)}</b> vient d'arriver au casino`); if (C.onRegister) await C.onRegister(id, pseudo);
     res.json({ token: sign(id), pseudo });
   } catch (e) { console.error(e); res.status(500).json({ err: 'Erreur serveur, réessaie.' }); }
 });
@@ -58,13 +58,14 @@ io.use((socket, next) => {
 });
 
 let onlineT = null;
-function online() { const list = []; C.users.forEach(u => { if (u.sockets.size) list.push({ id: u.id, pseudo: u.pseudo, face: u.d.av.face, acc: u.d.av.acc, lvl: C.LV(u) }); }); return list; }
+function online() { const list = []; C.users.forEach(u => { if (u.sockets.size) list.push({ id: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, acc: u.d.av.acc, lvl: C.LV(u), cr: C.isAdmin(u) }); }); return list; }
 function broadcastOnline() { clearTimeout(onlineT); onlineT = setTimeout(() => io.emit('online', online()), 300); }
 C.online = online;
 
 io.on('connection', async socket => {
   const u = await C.getUser(socket.uid);
   if (!u) { socket.emit('logout'); return socket.disconnect(); }
+  if (C.isBanned && C.isBanned(u)) { socket.emit('banned', { until: u.d.bannedUntil }); return socket.disconnect(); }
   u.sockets.add(socket); u.lastSeen = Date.now();
   socket.emit('me', C.pub(u));
   const hello = { feed: C.feedList, online: online() };
@@ -88,7 +89,7 @@ io.on('connection', async socket => {
 async function start() {
   await db.init();
   if (!SECRET) { SECRET = await db.kvGet('secret'); if (!SECRET) { SECRET = crypto.randomBytes(32).toString('hex'); await db.kvSet('secret', SECRET); } }
-  ['live', 'poker', 'blackjack', 'solo', 'sport', 'business', 'shop', 'social', 'casino2', 'extras'].forEach(m => require('./games/' + m));
+  ['live', 'poker', 'blackjack', 'solo', 'sport', 'business', 'shop', 'social', 'casino2', 'extras', 'account', 'v6games', 'v6social', 'push'].forEach(m => require('./games/' + m));
   const port = process.env.PORT || 3000;
   server.listen(port, () => console.log('Fauché en ligne sur le port ' + port));
 }

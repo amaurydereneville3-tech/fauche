@@ -128,7 +128,7 @@ function rVille(v){const has=id=>S.items.includes(id),bz=S.biz.map(id=>D.BIZ.fin
     <div class="sky"><span class="sun">☀️</span>${has('jet')?'<span class="plane">✈️</span>':''}${has('sp_air')?'<span class="plane p2">🛩️</span>':''}</div>
     <div class="skyline">${has('imm')?'<span class="bld b1">🏢'+(has('helico')?'<i class="heli">🚁</i>':'')+'</span>':'<span class="bld ghost">🏢</span>'}${has('studio')?'<span class="bld">🏠</span>':'<span class="bld ghost">🏠</span>'}${has('ps_statue')?'<span class="bld">🗿</span>':''}${has('ecurie')?'<span class="bld">🏁</span>':''}</div>
     <div class="street">${bz.map(b=>`<span class="shop" title="${b.nm}">${b.ic}<small>niv ${S.bizLv[b.id]||1}</small></span>`).join('')||'<span class="note">Aucune entreprise dans ta rue.</span>'}</div>
-    <div class="road3">${cars.map(id=>`<span>${itemInfo(id).ic}</span>`).join('')}${P?`<span>${P.ic}</span>`:''}<span>${S.av.face}</span></div>
+    <div class="road3">${cars.map(id=>`<span>${itemInfo(id).ic}</span>`).join('')}${P?`<span>${P.ic}</span>`:''}<span class="cityav">${avHTML(40)}</span></div>
     <div class="sea">${has('yacht')?'<span>🛥️</span>':''}${has('ps_yacht')?'<span>🛳️</span>':''}${has('jetski')?'<span>🌊</span>':''}${has('sp_sea')?'<span>🚤</span>':''}${has('villa')||has('ile')?'<span class="isl">🏝️</span>':''}</div></div>
   <p class="note">Tout ce que tu achètes apparaît dans ta ville. Il te manque encore ${D.SHOP.filter(x=>!has(x.id)).length} objets de la boutique.</p>
   <h3>Garage et courses de rue</h3>${cars.length?`<div class="list">${cars.map(id=>`<div class="lrow2"><span>${itemInfo(id).ic} ${itemInfo(id).nm}</span><span class="num note">vitesse ${D.CARS[id]}/12</span></div>`).join('')}</div>

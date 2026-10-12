@@ -1,6 +1,6 @@
 // Cœur du jeu : joueurs en mémoire, argent, XP, missions, succès, notifications.
 const db = require('./db');
-const D = require('../public/data5');
+const D = require('../public/data6');
 
 const C = { io: null, users: new Map(), feedList: [], market: null, events: {} };
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -17,7 +17,7 @@ function freshData() {
   return { cash: 1000, debt: 0, fdebts: [], lent: [], loanReq: [], items: [], boosts: { requin: 0, parrain: 0, flambeur: 0 }, cafeUntil: 0, xpBoostUntil: 0, suspectUntil: 0, boostLog: [], banUntil: 0,
     pos: [], slips: [], wins: 0, losses: 0, best: 0, played: 0, gp: {}, streakW: 0, streakL: 0, maxLoss: 0, bankrupt: 0, broke: false, liq: 0, greedy: 0, hungUp: 0, seized: 0, bestJob: 0,
     auctionsWon: 0, lotoBest: 0, pkWins: 0, chats: 0, xp: 0, ach: [], mis: null, daily: { chest: '', wheel: '' }, biz: [], lastCollect: Date.now(), albums: [], lastDaron: 0,
-    av: { face: '🙂', acc: '' }, card: { col: 0, mot: 'lisse' }, theme: 'monaco', room: { wall: 0 }, loto: null, embrouille: false,
+    av: { face: '🙂', acc: '', v2: null }, bio: '', pseudoAt: 0, bannedUntil: 0, wk: null, card: { col: 0, mot: 'lisse' }, theme: 'monaco', room: { wall: 0 }, loto: null, embrouille: false,
     pass: { xp: 0, claimed: [] }, wmis: null, wgames: [], hist: [], day: { date: '', net: 0, games: 0, best: 0 }, titleSel: '', tutoDone: false, bizLv: {}, freeCr: { b: 0, a: 0, o: 0 }, unlocks: [], pet: null, crates: 0,
     streak: { last: '', n: 0 }, vpRoyal: 0, heists: 0, heistOk: 0, jail: 0, tourBest: 0, tourWins: 0, street: { w: 0, l: 0 }, jackpots: 0, exPaid: 0, cp: null };
 }
@@ -30,6 +30,7 @@ async function getUser(id) {
   if (!row) return null;
   u = { id: row.id, pseudo: row.pseudo, d: Object.assign(freshData(), row.data), sockets: new Set(), dirty: false, s: {} };
   C.users.set(id, u);
+  if (!u.d.av.v2) u.d.av.v2 = D.avRandom(u.id);
   onLoad(u);
   return u;
 }
@@ -53,7 +54,7 @@ function tierIdx(u) { const w = worth(u); let i = 0; D.TIERS.forEach((t, k) => {
 const LV = u => D.levelOf(u.d.xp).l;
 
 // ---------- Envoi au navigateur ----------
-function pub(u) { const d = u.d; return { ...d, id: u.id, pseudo: u.pseudo, worth: worth(u), tier: tierIdx(u), lvl: LV(u), income: incomePerHour(d), pending: pending(d), now: Date.now() }; }
+function pub(u) { const d = u.d; return { ...d, id: u.id, pseudo: u.pseudo, admin: C.isAdmin(u), happyUntil: C.events.happyUntil || 0, worth: worth(u), tier: tierIdx(u), lvl: LV(u), income: incomePerHour(d), pending: pending(d), now: Date.now() }; }
 const pushT = new Map();
 function push(u) { if (!u.sockets.size || pushT.has(u.id)) return; pushT.set(u.id, setTimeout(() => { pushT.delete(u.id); u.sockets.forEach(s => s.emit('me', pub(u))); }, 30)); }
 function notify(u, n) { u.sockets.forEach(s => s.emit('notif', n)); if (!u.sockets.size && n.keep) { u.d.inbox = (u.d.inbox || []).slice(-9); u.d.inbox.push(n); markDirty(u); } }
@@ -98,7 +99,7 @@ const ACHF = {
   royal: d => d.vpRoyal >= 1, heist: d => d.heistOk >= 1, champ: d => d.tourWins >= 1, pet: d => !!d.pet, crate1: d => d.crates >= 1, streak7: d => d.streak.n >= 7, jackpot: d => d.jackpots >= 1, jail: d => d.jail >= 1, crate10: d => d.crates >= 10, ex: d => d.exPaid >= 1 };
 function checkAch(u) { D.ACH.forEach(a => { if (!u.d.ach.includes(a.id) && ACHF[a.id] && ACHF[a.id](u.d, u)) { u.d.ach.push(a.id); xp(u, 40); notify(u, { ic: a.ic, from: a.sh ? 'Succès honteux débloqué' : 'Succès débloqué', body: a.nm }); if (a.sh) feed(`<b>${esc(u.pseudo)}</b> débloque « ${a.nm} »`); } }); }
 function result(u, game, stake, payout, extra = {}) {
-  const d = u.d, net = payout - stake; d.played++; d.gp[game] = (d.gp[game] || 0) + 1;
+  const d = u.d, net = payout - stake; d.played++; C.stat && C.stat(u, game); d.gp[game] = (d.gp[game] || 0) + 1;
   d.hist.unshift({ g: game, s: Math.round(stake), p: Math.round(payout), t: Date.now() }); if (d.hist.length > 60) d.hist.length = 60;
   const dk = dkeyParis(); if (d.day.date !== dk) d.day = { date: dk, net: 0, games: 0, best: 0 }; d.day.net += net; d.day.games++; d.day.best = Math.max(d.day.best, net);
   weekMissions(u); if (!d.wgames.includes(game)) d.wgames.push(game);
@@ -106,8 +107,8 @@ function result(u, game, stake, payout, extra = {}) {
   xp(u, 6 + Math.min(30, Math.round(Math.log10(stake + 1) * 5))); track(u, 'play', game, 1);
   if (extra.mult) track(u, 'mult', game, extra.mult);
   if (net > 0) { d.wins++; d.streakW++; d.streakL = 0; xp(u, 6); track(u, 'win', game, 1); track(u, 'profit', null, net); if (net >= 1000) feed(`<b>${esc(u.pseudo)}</b> gagne ${eur(net)} ${D.GN[game] || ''}`);
-    let bonus = 0; if (game === D.luckyGame(dk)) bonus += Math.round(net * .1); if (D.petOn(d, 'cat') && game !== 'job') bonus += Math.round(net * .05); if (D.petOn(d, 'pig')) d.pet.bank = (d.pet.bank || 0) + Math.round(net * .03);
-    if (bonus > 0) setTimeout(() => { money(u, bonus); notify(u, { ic: game === D.luckyGame(dk) ? '🔮' : '🐈‍⬛', from: 'Bonus de chance', body: '+' + eur(bonus) }); }, 1200);
+    let bonus = 0; if (game === D.luckyGame(dk)) bonus += Math.round(net * .1); if ((C.events.happyUntil || 0) > Date.now() && game !== 'job') bonus += net; if (D.petOn(d, 'cat') && game !== 'job') bonus += Math.round(net * .05); if (D.petOn(d, 'pig')) d.pet.bank = (d.pet.bank || 0) + Math.round(net * .03);
+    if (bonus > 0) setTimeout(() => { money(u, bonus); notify(u, { ic: (C.events.happyUntil || 0) > Date.now() ? '🍾' : game === D.luckyGame(dk) ? '🔮' : '🐈‍⬛', from: (C.events.happyUntil || 0) > Date.now() ? 'Happy hour ×2' : 'Bonus de chance', body: '+' + eur(bonus) }); }, 1200);
     if (stake > 0 && net >= Math.max(20000, stake * 25) && C.sysChat) C.sysChat(`🔥 ${u.pseudo} vient de gagner ${eur(net)} ${D.GN[game] || ''} (×${(payout / stake).toFixed(1).replace('.', ',')}) !`); }
   else if (net < 0) { d.wins += 0; d.losses++; d.streakL++; d.streakW = 0; d.maxLoss = Math.max(d.maxLoss, -net);
     if (-net >= Math.max(1000, (d.cash - net) * .25)) { u.sockets.forEach(s => s.emit('bigloss', { game, amt: -net, mult: extra.mult || 0 })); C.events.maybeDaron && C.events.maybeDaron(u); } }
@@ -116,11 +117,14 @@ function result(u, game, stake, payout, extra = {}) {
 
 // ---------- Revenus passifs ----------
 const CAP_H = 8;
-function incomePerHour(d) { return d.biz.reduce((s, id) => { const b = D.BIZ.find(x => x.id === id); return s + (b ? D.bizInc(b, (d.bizLv || {})[id]) : 0); }, 0) + d.items.reduce((s, id) => s + ((D.SHOP.find(x => x.id === id) || {}).rent || 0), 0); }
+function incomePerHour(d) { return ((d.sabotUntil || 0) > Date.now() ? .5 : 1) * d.biz.reduce((s, id) => { const b = D.BIZ.find(x => x.id === id); return s + (b ? D.bizInc(b, (d.bizLv || {})[id]) : 0); }, 0) + d.items.reduce((s, id) => s + ((D.SHOP.find(x => x.id === id) || {}).rent || 0), 0); }
 function pending(d) { const h = Math.min(CAP_H, (Date.now() - d.lastCollect) / 3600000); return Math.floor(h * incomePerHour(d)); }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function card(u) { return { face: u.d.av.face, acc: u.d.av.acc }; }
+C.adminId = null;
+C.isAdmin = u => !!u && C.adminId != null && u.id === C.adminId;
+const avOf = u => u.d.av.v2;
 
 module.exports = Object.assign(C, { D, rnd, pick, shuffle, E, GameError, eur, parisNow, seeded, freshData, getUser, markDirty, saveUserNow, withUser, worth, tierIdx, LV, pub, push, notify, feed,
-  int, pay, money, checkBroke, casinoWin, xp, track, todayMissions, weekMissions, weekKey, checkAch, result, incomePerHour, pending, esc, card, itemsValue, owed, posValue, dkeyParis, ACHF });
+  int, pay, money, checkBroke, casinoWin, xp, track, todayMissions, weekMissions, weekKey, checkAch, result, incomePerHour, pending, esc, card, avOf, itemsValue, owed, posValue, dkeyParis, ACHF });

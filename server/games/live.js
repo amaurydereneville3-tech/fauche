@@ -7,7 +7,7 @@ const io = () => C.io;
 const CR = { phase: 'bet', endsAt: Date.now() + 7000, start: 0, crashAt: 0, bets: new Map(), hist: [2.41, 1.02, 7.8, 1.33, 3.1, 1.0, 12.4], round: 1 };
 const BET_MS = 8000;
 function crView() { return { phase: CR.phase, endsAt: CR.endsAt, start: CR.start, crashAt: CR.phase === 'end' ? CR.crashAt : 0, hist: CR.hist.slice(0, 14), round: CR.round, now: Date.now(),
-  bets: [...CR.bets.values()].map(b => ({ pseudo: b.pseudo, face: b.face, amt: b.amt, out: b.out, uid: b.uid })) }; }
+  bets: [...CR.bets.values()].map(b => ({ pseudo: b.pseudo, face: b.face, av: b.av, amt: b.amt, out: b.out, uid: b.uid })) }; }
 let crT = null;
 function crEmit() { clearTimeout(crT); crT = setTimeout(() => io().to('crash').emit('crash', crView()), 60); }
 function crashLoop() {
@@ -38,7 +38,7 @@ C.api.crashBet = (u, p) => {
   if (CR.phase !== 'bet') throw E('Attends le prochain décollage.');
   if (CR.bets.has(u.id)) throw E('Tu as déjà misé sur ce vol.');
   const amt = C.pay(u, p.amt); const auto = Number(p.auto) >= 1.01 ? Math.min(1000, Number(p.auto)) : 0;
-  CR.bets.set(u.id, { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, amt, auto, out: 0 }); crEmit(); return {};
+  CR.bets.set(u.id, { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, amt, auto, out: 0 }); crEmit(); return {};
 };
 C.api.crashOut = u => {
   const b = CR.bets.get(u.id); if (CR.phase !== 'fly' || !b || b.out) throw E('Trop tard !');
@@ -52,20 +52,26 @@ C.api.crashLeave = (u, p, s) => { s.leave('crash'); return {}; };
 const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const KEYS = new Set(['red', 'black', 'even', 'odd', 'low', 'high', 'd1', 'd2', 'd3', 'c1', 'c2', 'c3', ...Array.from({ length: 37 }, (_, i) => 'n' + i)]);
-function roWin(k, n) { if (k[0] === 'n') return +k.slice(1) === n; if (n === 0) return false;
+// V6 : mises à cheval (s), carrés (q), transversales (t), sixains (x)
+const COVER = {};
+for (let n = 1; n <= 36; n++) { if (n % 3) COVER['s' + n + '-' + (n + 1)] = [n, n + 1]; if (n <= 33) COVER['s' + n + '-' + (n + 3)] = [n, n + 3]; if (n % 3 && n <= 32) COVER['q' + n] = [n, n + 1, n + 3, n + 4]; }
+[1, 2, 3].forEach(n => { COVER['s0-' + n] = [0, n]; }); COVER.q0 = [0, 1, 2, 3];
+for (let r = 1; r <= 12; r++) { COVER['t' + r] = [3 * r - 2, 3 * r - 1, 3 * r]; if (r <= 11) COVER['x' + r] = [3 * r - 2, 3 * r - 1, 3 * r, 3 * r + 1, 3 * r + 2, 3 * r + 3]; }
+Object.keys(COVER).forEach(k => KEYS.add(k));
+function roWin(k, n) { if (COVER[k]) return COVER[k].includes(n); if (k[0] === 'n') return +k.slice(1) === n; if (n === 0) return false;
   switch (k) { case 'red': return REDS.has(n); case 'black': return !REDS.has(n); case 'even': return n % 2 === 0; case 'odd': return n % 2 === 1; case 'low': return n <= 18; case 'high': return n >= 19; }
   if (k[0] === 'd') return Math.ceil(n / 12) === +k[1]; if (k[0] === 'c') return ((n - 1) % 3) + 1 === +k[1]; return false; }
-const roMult = k => k[0] === 'n' ? 36 : (k[0] === 'd' || k[0] === 'c') ? 3 : 2;
+const roMult = k => COVER[k] ? D.ROPAY[k[0]] : k[0] === 'n' ? 36 : (k[0] === 'd' || k[0] === 'c') ? 3 : 2;
 const RO = { phase: 'bet', endsAt: Date.now() + 20000, n: null, spinAt: 0, bets: new Map(), hist: [], round: 1 };
 const RO_BET = 20000, RO_SPIN = 6500, RO_RES = 5000;
-function roView() { const players = []; RO.bets.forEach(b => players.push({ pseudo: b.pseudo, face: b.face, total: b.total, win: b.win })); return { phase: RO.phase, endsAt: RO.endsAt, n: RO.phase === 'bet' ? null : RO.n, spinAt: RO.spinAt, hist: RO.hist.slice(0, 14), players, round: RO.round, now: Date.now() }; }
+function roView() { const players = []; RO.bets.forEach(b => players.push({ pseudo: b.pseudo, face: b.face, av: b.av, total: b.total, win: b.win })); return { phase: RO.phase, endsAt: RO.endsAt, light: RO.phase === 'bet' ? null : RO.light, n: RO.phase === 'bet' ? null : RO.n, spinAt: RO.spinAt, hist: RO.hist.slice(0, 14), players, round: RO.round, now: Date.now() }; }
 const roEmit = () => io().to('ro').emit('ro', roView());
 setInterval(() => {
   const now = Date.now();
-  if (RO.phase === 'bet' && now >= RO.endsAt) { RO.n = Math.random() * 37 | 0; RO.phase = 'spin'; RO.spinAt = now; RO.endsAt = now + RO_SPIN; roEmit(); }
+  if (RO.phase === 'bet' && now >= RO.endsAt) { RO.light = Math.random() < .5 ? { n: Math.random() * 37 | 0, k: pick([2, 2, 2, 2, 2, 2, 2, 3, 3, 5]) } : null; RO.n = Math.random() * 37 | 0; RO.phase = 'spin'; RO.spinAt = now; RO.endsAt = now + RO_SPIN; roEmit(); }
   else if (RO.phase === 'spin' && now >= RO.endsAt) {
     const n = RO.n; RO.hist.unshift(n); RO.hist.length = Math.min(RO.hist.length, 20); RO.phase = 'res'; RO.endsAt = now + RO_RES;
-    RO.bets.forEach(b => C.getUser(b.uid).then(u => { if (!u) return; let payout = 0; for (const k in b.bets) if (roWin(k, n)) payout += b.bets[k] * roMult(k);
+    RO.bets.forEach(b => C.getUser(b.uid).then(u => { if (!u) return; let payout = 0; for (const k in b.bets) if (roWin(k, n)) payout += b.bets[k] * roMult(k) * (RO.light && k === 'n' + n && RO.light.n === n ? RO.light.k : 1);
       let profit = payout - b.total; if (payout && b.fl && profit > 0) { payout += profit; profit *= 2; } if (profit > 0) { const bo = C.casinoWin(u, profit); payout += bo; }
       b.win = payout; if (payout) C.money(u, payout); C.result(u, 'ro', b.total, payout); u.sockets.forEach(s => s.emit('roRes', { n, payout, total: b.total })); roEmit(); }));
     roEmit();
@@ -77,7 +83,7 @@ C.api.roBet = (u, p) => {
   for (const k in (p.bets || {})) { if (!KEYS.has(k)) throw E('Mise invalide.'); const a = C.int(p.bets[k]); bets[k] = a; total += a; }
   if (!total) throw E('Pose au moins un jeton.');
   C.pay(u, total);
-  let b = RO.bets.get(u.id); if (!b) { b = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, bets: {}, total: 0, win: 0, fl: false }; RO.bets.set(u.id, b); }
+  let b = RO.bets.get(u.id); if (!b) { b = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, bets: {}, total: 0, win: 0, fl: false }; RO.bets.set(u.id, b); }
   let moved = null;
   if (!b.fl && u.d.boosts.flambeur > 0) { u.d.boosts.flambeur--; b.fl = true; const ks = Object.keys(bets), k = pick(ks), to = 'n' + (Math.random() * 37 | 0); const a = bets[k]; delete bets[k]; bets[to] = (bets[to] || 0) + a; moved = [k, to]; }
   for (const k in bets) b.bets[k] = (b.bets[k] || 0) + bets[k];
@@ -94,7 +100,7 @@ function sim(str) { const p = str.map(() => 0); let t = 0; while (Math.max(...p)
 function genRace() { RC.type = pick(Object.keys(D.RACES)); const str = Array.from({ length: 6 }, () => rnd(.95, 1.05)); const w = Array(6).fill(0); for (let k = 0; k < 500; k++) w[sim(str)]++;
   RC.runners = str.map((s, i) => ({ s, odds: Math.min(30, Math.max(1.3, +(1 / ((w[i] + 3) / 518) / 1.1).toFixed(2))) })); RC.pos = Array(6).fill(0); RC.winner = -1; RC.comm = 'Prochaine course : faites vos jeux !'; }
 genRace();
-function rcView() { const players = []; RC.bets.forEach(b => players.push({ pseudo: b.pseudo, face: b.face, runner: b.runner, amt: b.amt })); return { phase: RC.phase, endsAt: RC.endsAt, type: RC.type, odds: RC.runners.map(r => r.odds), pos: RC.pos, winner: RC.winner, comm: RC.comm, players, now: Date.now() }; }
+function rcView() { const players = []; RC.bets.forEach(b => players.push({ pseudo: b.pseudo, face: b.face, av: b.av, runner: b.runner, amt: b.amt })); return { phase: RC.phase, endsAt: RC.endsAt, type: RC.type, odds: RC.runners.map(r => r.odds), pos: RC.pos, winner: RC.winner, comm: RC.comm, players, now: Date.now() }; }
 const rcEmit = () => io().to('race').emit('race', rcView());
 let leader = -1, t = 0;
 setInterval(() => {
@@ -116,7 +122,7 @@ C.api.raceBet = (u, p) => {
   if (RC.phase !== 'bet') throw E('La course est lancée, attends la suivante.');
   if (RC.bets.has(u.id)) throw E('Un seul pari par course.');
   const r = Number(p.runner); if (!(r >= 0 && r < 6)) throw E('Choisis un concurrent.');
-  const amt = C.pay(u, p.amt); RC.bets.set(u.id, { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, runner: r, amt }); rcEmit(); return {};
+  const amt = C.pay(u, p.amt); RC.bets.set(u.id, { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, runner: r, amt }); rcEmit(); return {};
 };
 C.api.raceJoin = (u, p, s) => { s.join('race'); s.emit('race', rcView()); const b = RC.bets.get(u.id); return { mine: b ? { runner: b.runner, amt: b.amt } : null }; };
 C.api.raceLeave = (u, p, s) => { s.leave('race'); return {}; };

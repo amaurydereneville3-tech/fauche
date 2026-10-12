@@ -39,7 +39,7 @@ D.POKER.forEach(cfg => { T[cfg.id] = { cfg, seats: Array(6).fill(null), dealer: 
 function seatView(t, s, i, viewer) {
   if (!s) return null;
   const showCards = (t.phase === 'show' && s.shown) || (viewer && s.uid === viewer);
-  return { i, pseudo: s.pseudo, face: s.face, acc: s.acc, bot: s.bot, uid: s.uid, stack: s.stack, bet: s.bet, folded: s.folded, allin: s.allin, inHand: s.inHand, away: s.away,
+  return { i, pseudo: s.pseudo, face: s.face, av: s.av, acc: s.acc, bot: s.bot, uid: s.uid, stack: s.stack, bet: s.bet, folded: s.folded, allin: s.allin, inHand: s.inHand, away: s.away,
     cards: s.inHand ? (showCards ? s.cards : ['??', '??']) : [], hand: showCards && s.handName ? s.handName : '', win: s.win || 0 };
 }
 function view(t, uid) {
@@ -207,7 +207,7 @@ C.api.pkSit = (u, p) => {
   if (i < 0) throw E('Table complète.');
   const buy = Math.max(t.cfg.min, Math.min(t.cfg.max, Math.floor(Number(p.buyin) || t.cfg.min)));
   C.pay(u, buy);
-  t.seats[i] = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, acc: u.d.av.acc, stack: buy, cards: [], bet: 0, total: 0, folded: false, allin: false, inHand: false, acted: false, bot: false };
+  t.seats[i] = { uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, acc: u.d.av.acc, stack: buy, cards: [], bet: 0, total: 0, folded: false, allin: false, inHand: false, acted: false, bot: false };
   log(t, u.pseudo + ' s\'assoit avec ' + C.eur(buy)); fillBots(t); emit(t); maybeStart(t); return {};
 };
 C.api.pkStand = async (u, p) => { const t = tbl(p.id); const i = t.seats.findIndex(x => x && x.uid === u.id); if (i < 0) throw E('Tu n\'es pas assis.'); await standUp(t, i); return {}; };

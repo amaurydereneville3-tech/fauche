@@ -6,19 +6,21 @@ const { D, rnd, pick, shuffle, E } = C;
 
 /* ---------- Chat ---------- */
 const CHAT = [];
-C.sysChat = text => { const m = { id: Date.now() + 'sys' + Math.random(), uid: 0, pseudo: 'Le Croupier', face: '📣', text, t: Date.now(), sys: 1 }; CHAT.push(m); if (CHAT.length > 60) CHAT.shift(); if (C.io) C.io.emit('chat', m); };
+C.sysChat = (text, extra) => { const m = Object.assign({ id: Date.now() + 'sys' + Math.random(), uid: 0, pseudo: 'Le Croupier', face: '📣', text, t: Date.now(), sys: 1 }, extra || {}); CHAT.push(m); if (CHAT.length > 60) CHAT.shift(); if (C.io) C.io.emit('chat', m); };
 const BAD = ['connard', 'connasse', 'salope', 'enculé', 'encule', 'pute', 'nègre', 'negre', 'pd', 'fdp', 'ntm', 'bougnoule'];
+C.clean = t => clean(t);
 function clean(t) { let s = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 200); BAD.forEach(w => { s = s.replace(new RegExp('\\b' + w + '\\b', 'gi'), '***'); }); return s; }
 C.api.say = (u, p) => { const now = Date.now(); if (now - (u.s.lastChat || 0) < 1500) throw E('Pas si vite !'); const text = clean(p.text); if (!text) throw E('Message vide.');
-  u.s.lastChat = now; const m = { id: now + '' + u.id, uid: u.id, pseudo: u.pseudo, face: u.d.av.face, text, t: now }; CHAT.push(m); if (CHAT.length > 60) CHAT.shift();
+  u.s.lastChat = now; const m = { id: now + '' + u.id, uid: u.id, pseudo: u.pseudo, face: u.d.av.face, av: u.d.av.v2, cr: C.isAdmin(u) ? 1 : 0, text, t: now }; CHAT.push(m); if (CHAT.length > 60) CHAT.shift();
   u.d.chats++; C.track(u, 'play', 'chat', 1); C.checkAch(u); C.io.emit('chat', m); return {}; };
 C.hello.push(() => ({ chat: CHAT.slice(-40), jackpotUntil: C.events.jackpotUntil || 0 }));
 
 /* ---------- Classement et profils ---------- */
 let topCache = { t: 0, rows: [] };
 C.api.top = async () => { if (Date.now() - topCache.t > 60000) { topCache = { t: Date.now(), rows: await db.top(50) }; }
-  const map = new Map(topCache.rows.map(r => [r.id, { id: r.id, pseudo: r.pseudo, worth: Math.round(r.worth || 0), face: (r.av && r.av.face) || '🙂' }]));
-  C.users.forEach(u => map.set(u.id, { id: u.id, pseudo: u.pseudo, worth: C.worth(u), face: u.d.av.face, on: u.sockets.size > 0 }));
+  const map = new Map(topCache.rows.map(r => [r.id, { id: r.id, pseudo: r.pseudo, worth: Math.round(r.worth || 0), face: (r.av && r.av.face) || '🙂', av: (r.av && r.av.v2) || D.avRandom(r.id) }]));
+  C.users.forEach(u => map.set(u.id, { id: u.id, pseudo: u.pseudo, worth: C.worth(u), face: u.d.av.face, av: u.d.av.v2, on: u.sockets.size > 0 }));
+  map.forEach(r => { r.cr = r.id === C.adminId ? 1 : 0; });
   return { rows: [...map.values()].sort((a, b) => b.worth - a.worth).slice(0, 50) }; };
 C.api.profile = async (u, p) => { const o = await C.getUser(+p.id); if (!o) throw E('Joueur introuvable.'); const d = o.d;
   return { id: o.id, pseudo: o.pseudo, av: d.av, card: d.card, lvl: C.LV(o), worth: C.worth(o), tier: C.tierIdx(o), ach: d.ach, items: d.items, biz: d.biz, wall: d.room.wall, wins: d.wins, losses: d.losses, on: o.sockets.size > 0, suspect: d.suspectUntil > Date.now() }; };
