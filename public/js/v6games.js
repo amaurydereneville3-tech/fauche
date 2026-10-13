@@ -50,26 +50,26 @@ function confetti(cols){if(RM)return;for(let i=0;i<40;i++){const c=document.crea
   const a=rnd(0,Math.PI*2),d=rnd(60,240);c.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d+200}px) rotate(${rnd(-720,720)}deg)`,opacity:0}],{duration:rnd(900,1500),easing:'cubic-bezier(.2,.7,.4,1)'}).onfinish=()=>c.remove()}}
 
 /* ---------- Empile les lingots ---------- */
-let LG={phase:'idle',bet:0,lvl:0,w:5,rows:[],t0:0,ph:0,msg:'Arrête la barre pile au-dessus de la précédente. Ce qui dépasse tombe.',cls:'',busy:false,cur:0};ST.lingots=50;
+let LG={phase:'idle',bet:0,lvl:0,w:3,rows:[],t0:0,ph:0,msg:'Arrête la barre pile au-dessus de la précédente. Ce qui dépasse tombe.',cls:'',busy:false,cur:0};ST.lingots=50;
 BUSY.push(()=>LG.phase==='run'||LG.busy);
 GAME_VIEW.lingots=el=>{const run=LG.phase==='run';
   el.innerHTML=`<div class="lgwrap"><div class="lgboard" id="lgB">${Array.from({length:D.LGTOP},(_,r)=>{const row=D.LGTOP-1-r,R=LG.rows[row];return`<div class="lgrow ${row===LG.lvl&&run?'cur':''}">${Array.from({length:D.LGW},(_,c)=>`<i class="${R&&c>=R[0]&&c<R[0]+R[1]?'bar':''}"></i>`).join('')}</div>`}).join('')}<div class="lgmov" id="lgM"></div></div>
-    <div class="lgladder">${D.LGMULT.slice(1).map((m,i)=>`<span class="${i+1===LG.lvl?'on':i+1<LG.lvl?'ok':''}">${x2(m).replace(',00','')}</span>`).reverse().join('')}</div></div>
+    <div class="lgladder">${D.LGMULT.slice(1).map((m,i)=>`<span class="${i+1===LG.lvl?'on':i+1<LG.lvl?'ok':''}">${m?x2(m).replace(',00',''):'—'}</span>`).reverse().join('')}</div></div>
   <div class="msg ${LG.cls}">${LG.msg}</div>
-  ${run?`<div class="row2"><button class="btn big" data-act="lgout" ${LG.lvl&&!LG.busy?'':'disabled'}>Encaisser ${LG.lvl?eur(LG.bet*D.LGMULT[LG.lvl]):''}</button><button class="btn gold big" data-act="lgtap" ${LG.busy?'disabled':''}>Poser !</button></div>`
+  ${run?`<div class="row2"><button class="btn big" data-act="lgout" ${LG.lvl>=D.LGMIN&&!LG.busy?'':'disabled'}>Encaisser ${LG.lvl>=D.LGMIN?eur(LG.bet*D.LGMULT[LG.lvl]):'(dès '+D.LGMIN+' rangées)'}</button><button class="btn gold big" data-act="lgtap" ${LG.busy?'disabled':''}>Poser !</button></div>`
   :`${stakeUI('lingots')}<button class="btn gold big" data-act="lggo">Commencer · <span data-sl="lingots">${eur(ST.lingots)}</span></button>`}`;
   lgLoop()};
 let lgOn=false;
 function lgLoop(){if(lgOn)return;lgOn=true;const f=()=>{const m=$('#lgM'),b=$('#lgB');if(!m||!b){lgOn=false;return}
   if(LG.phase==='run'&&!LG.busy){const x=D.lgPos(now()-LG.t0,LG.w,LG.lvl,LG.ph),cw=b.clientWidth/D.LGW,rh=b.clientHeight/D.LGTOP;LG.cur=x;
     m.style.display='block';m.style.left=(x*cw)+'px';m.style.width=(LG.w*cw)+'px';m.style.top=((D.LGTOP-1-LG.lvl)*rh)+'px';m.style.height=rh+'px'}else if(LG.phase!=='run')m.style.display='none';requestAnimationFrame(f)};requestAnimationFrame(f)}
-ACT.lggo=async()=>{if(!canBet(ST.lingots))return;let r;try{r=await api('lgStart',{amt:ST.lingots})}catch(e){return}Object.assign(LG,{phase:'run',bet:ST.lingots,lvl:0,w:5,rows:[],t0:r.t0,ph:r.ph,msg:'Tape « Poser » (ou le plateau) au bon moment !',cls:''});snd('pop');render()};
+ACT.lggo=async()=>{if(!canBet(ST.lingots))return;let r;try{r=await api('lgStart',{amt:ST.lingots})}catch(e){return}Object.assign(LG,{phase:'run',bet:ST.lingots,lvl:0,w:D.LGW0,rows:[],t0:r.t0,ph:r.ph,msg:'Tape « Poser » (ou le plateau) au bon moment !',cls:''});snd('pop');render()};
 ACT.lgtap=async()=>{if(LG.phase!=='run'||LG.busy)return;LG.busy=true;holdCash=1;const ms=now()-LG.t0;let r;try{r=await api('lgTap',{ms})}catch(e){LG.busy=false;release();return}
   if(r.lose){LG.phase='idle';LG.busy=false;LG.msg='Raté ! La pile s\'effondre. Perdu '+eur(LG.bet)+'.';LG.cls='lose';render();snd('boom');shake();release();return}
   const cut=LG.w-r.w;LG.rows[r.lvl-1]=[r.x,r.w];LG.w=r.w;LG.lvl=r.lvl;snd(cut?'tick':'coin');vib(20);
   if(r.done){LG.phase='idle';LG.busy=false;LG.msg=(r.lvl>=D.LGTOP?'SOMMET ATTEINT ! ':'')+'Encaissé '+x2(r.m)+' : +'+eur(r.pay-LG.bet);LG.cls='win';render();burst(50);snd('big');release();return}
   LG.t0=r.t0;LG.ph=r.ph;LG.busy=false;LG.msg=cut?`${cut} lingot${cut>1?'s':''} tombé${cut>1?'s':''}… Il en reste ${r.w}.`:'Parfait ! Tout est aligné.';LG.cls=cut?'':'win';render();release()};
-ACT.lgout=()=>play(async()=>{if(LG.phase!=='run'||!LG.lvl)return;const r=await api('lgOut');LG.phase='idle';LG.msg='Encaissé '+x2(r.m)+' : +'+eur(r.pay-LG.bet);LG.cls='win';render();burst(r.m>=5?30:12);snd('win')});
+ACT.lgout=()=>play(async()=>{if(LG.phase!=='run'||LG.lvl<D.LGMIN)return;const r=await api('lgOut');LG.phase='idle';LG.msg='Encaissé '+x2(r.m)+' : +'+eur(r.pay-LG.bet);LG.cls='win';render();burst(r.m>=5?30:12);snd('win')});
 document.addEventListener('pointerdown',e=>{if(e.target.closest('#lgB')&&LG.phase==='run')ACT.lgtap()});
 
 /* ---------- Pousse-pièces ---------- */

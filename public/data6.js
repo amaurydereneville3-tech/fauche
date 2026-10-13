@@ -34,8 +34,8 @@ Object.assign(D.GN,{ballon:'au Ballon',lingots:'aux Lingots',pousse:'au Pousse-p
 Object.assign(D.GLV,{ballon:1,lingots:2,dt:3,wshow:2,kebab:3,daron:5,monaco:7,battle:4});
 D.BALMODES=[{nm:'Prudent',p:.04},{nm:'Normal',p:.08},{nm:'Kamikaze',p:.15}];D.BALMAX=40;
 D.balM=(k,m)=>k?+(.97*Math.pow(1/(1-m.p),k)).toFixed(2):1;
-D.LGW=9;D.LGTOP=10;D.LGMULT=[0,1.2,1.5,2,2.6,3.5,5,7,10,15,25];
-D.lgSpeed=l=>2.4+l*.55;
+D.LGW=9;D.LGW0=3;D.LGMIN=3;D.LGTOP=10;D.LGMULT=[0,0,0,1,1.1,1.3,1.6,2,2.6,3.6,5.5];
+D.lgSpeed=l=>7.5+l*1;
 D.lgPos=(ms,w,l,ph)=>{const R=D.LGW-w;if(R<=0)return 0;const t=ms/1000*D.lgSpeed(l)+ph,f=t%(2*R);return Math.min(R,Math.floor(f<R?f:2*R-f+.0001))};
 D.PPDIST=[[0,.496],[.5,.18],[1,.14],[2,.09],[3,.05],[5,.025],[10,.015],[30,.004]];
 D.DTPAY={d:2,t:2,tie:9};

@@ -15,16 +15,16 @@ C.api.blOut = u => { const g = u.s.bl; if (!g || !g.k) throw E('Gonfle au moins 
   C.money(u, pay); C.result(u, 'ballon', g.bet, pay, { mult: m }); return { pay, m, done: 1 }; };
 
 /* ---------- Empile les lingots ---------- */
-C.api.lgStart = (u, p) => { open(u, 'lingots'); if (u.s.lg) throw E('Termine ta tour de lingots.'); const t = Date.now(); u.s.lg = { bet: C.pay(u, p.amt), lvl: 0, w: 5, x: 2, t0: t, ph: Math.random() * 6, last: 0, rows: [] };
+C.api.lgStart = (u, p) => { open(u, 'lingots'); if (u.s.lg) throw E('Termine ta tour de lingots.'); const t = Date.now(); u.s.lg = { bet: C.pay(u, p.amt), lvl: 0, w: D.LGW0, x: 3, t0: t, ph: Math.random() * 6, last: 0, rows: [] };
   return { t0: t, ph: u.s.lg.ph, now: t }; };
-C.api.lgTap = (u, p) => { const g = u.s.lg; if (!g) throw E('Pas de partie en cours.'); const el = Date.now() - g.t0; let ms = Math.floor(+p.ms); if (!(ms >= 0)) ms = el; ms = Math.min(ms, el + 400);
+C.api.lgTap = (u, p) => { const g = u.s.lg; if (!g) throw E('Pas de partie en cours.'); const el = Date.now() - g.t0; let ms = Math.floor(+p.ms); if (!(ms >= 0)) ms = el; ms = Math.max(el - 800, Math.min(ms, el + 400));
   const x = D.lgPos(ms, g.w, g.lvl, g.ph); let nx = x, nw = g.w;
   if (g.lvl > 0) { const a = Math.max(x, g.x), b = Math.min(x + g.w, g.x + g.w); nw = b - a; nx = a; }
   if (nw <= 0) { u.s.lg = null; C.result(u, 'lingots', g.bet, 0, { mult: 0 }); return { x, w: g.w, lose: 1, lvl: g.lvl }; }
   g.lvl++; g.w = nw; g.x = nx; g.rows.push([nx, nw]); g.t0 = g.t0 + ms; g.ph = Math.random() * 6;
   if (g.lvl >= D.LGTOP) return { x: nx, w: nw, lvl: g.lvl, ...C.api.lgOut(u) };
   return { x: nx, w: nw, lvl: g.lvl, m: D.LGMULT[g.lvl], t0: g.t0, ph: g.ph }; };
-C.api.lgOut = u => { const g = u.s.lg; if (!g || !g.lvl) throw E('Pose au moins une rangée.'); u.s.lg = null; const m = D.LGMULT[g.lvl]; let pay = Math.round(g.bet * m); pay = cw(u, pay, g.bet);
+C.api.lgOut = u => { const g = u.s.lg; if (!g || g.lvl < D.LGMIN) throw E('Pose au moins ' + D.LGMIN + ' rangées avant d\'encaisser.'); u.s.lg = null; const m = D.LGMULT[g.lvl]; let pay = Math.round(g.bet * m); pay = cw(u, pay, g.bet);
   C.money(u, pay); C.result(u, 'lingots', g.bet, pay, { mult: m }); return { pay, m, done: 1 }; };
 
 /* ---------- Pousse-pièces ---------- */
